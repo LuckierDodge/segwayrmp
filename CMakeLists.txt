@@ -15,6 +15,7 @@ endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
+  add_compile_options(-Werror)
 endif()
 
 # find dependencies
@@ -31,23 +32,31 @@ find_package(tf2_ros REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(rclcpp_components REQUIRED)
 
+if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64")
+  set(arch_suffix x86_64)
+elseif (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
+  set(arch_suffix arm64-v8a)
+else()
+  message(FATAL_ERROR "unsupported architecture")
+endif()
+
 add_executable(SmartCar
-  src/SmartCar.cpp 
-  src/robot.cpp 
+  src/SmartCar.cpp
+  src/robot.cpp
 )
 target_include_directories(SmartCar PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
-target_link_directories(SmartCar PUBLIC 
+target_link_directories(SmartCar PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/lib
 )
 # message(WARNING ${PROJECT_SOURCE_DIR} + "!!" + ${CMAKE_CURRENT_SOURCE_DIR} + "!!" + ${PROJECT_NAME})
 ament_target_dependencies(SmartCar
   "rclcpp" "std_msgs" "nav_msgs" "sensor_msgs" "geometry_msgs" "segway_msgs" "tf2" "tf2_ros"
-) 
+)
 target_link_libraries(SmartCar
-  ${PROJECT_SOURCE_DIR}/lib/libctrl_arm64-v8a.so
+  ${PROJECT_SOURCE_DIR}/lib/libctrl_${arch_suffix}.so
 )
 
 add_executable(drive_segway_sample
@@ -66,6 +75,14 @@ install(TARGETS
   drive_segway_sample
   DESTINATION
   lib/${PROJECT_NAME})
+
+install(FILES
+        ${PROJECT_SOURCE_DIR}/lib/libctrl_${arch_suffix}.so
+        DESTINATION lib)
+
+install(PROGRAMS
+        ${PROJECT_SOURCE_DIR}/lib/ctrl_${arch_suffix}
+        DESTINATION bin)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
